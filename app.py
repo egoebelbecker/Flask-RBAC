@@ -1,73 +1,72 @@
 #!/usr/bin/env python
 # encoding: utf-8
 import json
-from flask import Flask, request, jsonify
+import sqlite3
+from flask import Flask, request, jsonify, abort
 
 app = Flask(__name__)
+
+conn = sqlite3.connect('database.db')
+conn.execute('CREATE TABLE IF NOT EXISTS inventory (name TEXT NOT NULL UNIQUE, data json NOT NULL)')
+conn.execute('CREATE INDEX IF NOT EXISTS idx_name on inventory(name)')
+conn.close()
 
 
 @app.route('/api/inventory', methods=['GET'])
 def query_records():
-    name = request.args.get('name')
-    print("Getting {}".format(name))
-    with open('data.txt', 'r') as f:
-        data = f.read()
-        records = json.loads(data)
-        for record in records:
-            if record['name'] == name:
-                return jsonify(record)
-        return jsonify({'error': 'data not found'})
+    try:
+        name = request.args.get('name')
+        with sqlite3.connect("database.db") as con:
+            con.row_factory = sqlite3.Row
+            cur = con.cursor()
+            cur.execute("select data from inventory where name=?", (name, ))
+            row = cur.fetchone()
+            return row["data"] if row else ("{} not found".format(name), 400)
+    except Exception as e:
+        abort(500, e)
 
 
+# Modify existing
 @app.route('/api/inventory', methods=['PUT'])
-def create_record():
-    record = json.loads(request.data)
-    print("Putting {}".format(record))
-    with open('data.txt', 'r') as f:
-        data = f.read()
-    if not data:
-        records = [record]
-    else:
-        records = json.loads(data)
-        records.append(record)
-    with open('data.txt', 'w') as f:
-        f.write(json.dumps(records, indent=2))
-    return jsonify(record)
-
-
-@app.route('/api/inventory', methods=['POST'])
 def update_record():
-    record = json.loads(request.data)
-    new_records = []
-    print("Modifying {}".format(record))
-    with open('data.txt', 'r') as f:
-        data = f.read()
-        records = json.loads(data)
-    for r in records:
-        if r['name'] == record['name']:
-            r['email'] = record['email']
-        new_records.append(r)
-    with open('data.txt', 'w') as f:
-        f.write(json.dumps(new_records, indent=2))
-    return jsonify(record)
+    try:
+        record = json.loads(request.data)
+        with sqlite3.connect("database.db") as con:
+            cur = con.cursor()
+            cur.execute("INSERT INTO inventory (name, data) VALUES(?, ?) ON CONFLICT(name) DO UPDATE SET data=?",(record['name'], request.data, request.data))
+            con.commit()
+        return jsonify(record)
+    except Exception as e:
+        abort(500, e)
+
+# Add new
+@app.route('/api/inventory', methods=['POST'])
+def create_record():
+    try:
+        record = json.loads(request.data)
+        print("Putting {}".format(record))
+        with sqlite3.connect("database.db") as con:
+            cur = con.cursor()
+            cur.execute("INSERT INTO inventory (name, data) VALUES(?, ?)", (record['name'], request.data))
+            con.commit()
+        return jsonify(record)
+    except Exception as e:
+        abort(500, e)
 
 
 @app.route('/api/inventory', methods=['DELETE'])
 def delete_record():
-    record = json.loads(request.data)
-    new_records = []
-    print("Deleting {}".format(record))
-    with open('data.txt', 'r') as f:
-        data = f.read()
-        records = json.loads(data)
-        for r in records:
-            if r['name'] == record['name']:
-                continue
-            new_records.append(r)
-    with open('data.txt', 'w') as f:
-        f.write(json.dumps(new_records, indent=2))
-    return jsonify(record)
+    try:
+        name = request.args.get('name')
+        with sqlite3.connect("database.db") as con:
+            cur = con.cursor()
+            cur.execute("DELETE FROM inventory where name = ?", (name, ))
+            con.commit()
+
+        return "{} deleted".format(name), 200
+    except Exception as e:
+        abort(500, e)
 
 
 if __name__ == '__main__':
-    app.run(port=8080)
+    app.run()
