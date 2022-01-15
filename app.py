@@ -3,15 +3,17 @@
 import json
 import sqlite3
 from flask import Flask, request, jsonify, abort
+from werkzeug.security import check_password_hash
+from flask_httpauth import HTTPBasicAuth
 
 
-conn = sqlite3.connect('database.db')
-conn.execute('CREATE TABLE IF NOT EXISTS inventory (name TEXT NOT NULL UNIQUE, data json NOT NULL)')
-conn.execute('CREATE INDEX IF NOT EXISTS idx_name on inventory(name)')
-conn.close()
+app = Flask(__name__)
+auth = HTTPBasicAuth()
+
 
 # Retrieve an item
 @app.route('/api/inventory', methods=['GET'])
+@auth.login_required
 def query_records():
     try:
         name = request.args.get('name')
@@ -27,6 +29,7 @@ def query_records():
 
 # Modify an existing item
 @app.route('/api/inventory', methods=['PUT'])
+@auth.login_required
 def update_record():
     try:
         record = json.loads(request.data)
@@ -38,8 +41,10 @@ def update_record():
     except Exception as e:
         abort(500, e)
 
+
 # Add a new item
 @app.route('/api/inventory', methods=['POST'])
+@auth.login_required
 def create_record():
     try:
         record = json.loads(request.data)
@@ -54,6 +59,7 @@ def create_record():
 
 # Delete an item
 @app.route('/api/inventory', methods=['DELETE'])
+@auth.login_required
 def delete_record():
     try:
         name = request.args.get('name')
@@ -65,6 +71,20 @@ def delete_record():
         return "{} deleted".format(name), 200
     except Exception as e:
         abort(500, e)
+
+
+# Verify password against hashed values in the database
+@auth.verify_password
+def verify_password(username, password):
+    if username and password:
+        with sqlite3.connect("database.db") as con:
+            con.row_factory = sqlite3.Row
+            cur = con.cursor()
+            cur.execute("select password from users where username=?", (username,))
+            row = cur.fetchone()
+            return check_password_hash(row['password'], password)
+    else:
+        return False
 
 
 if __name__ == '__main__':
