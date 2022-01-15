@@ -11,7 +11,7 @@ conn.execute('CREATE TABLE IF NOT EXISTS inventory (name TEXT NOT NULL UNIQUE, d
 conn.execute('CREATE INDEX IF NOT EXISTS idx_name on inventory(name)')
 conn.close()
 
-
+# Retrieve an item
 @app.route('/api/inventory', methods=['GET'])
 def query_records():
     try:
@@ -26,7 +26,7 @@ def query_records():
         abort(500, e)
 
 
-# Modify existing
+# Modify an existing item
 @app.route('/api/inventory', methods=['PUT'])
 def update_record():
     try:
@@ -39,7 +39,7 @@ def update_record():
     except Exception as e:
         abort(500, e)
 
-# Add new
+# Add a new item
 @app.route('/api/inventory', methods=['POST'])
 def create_record():
     try:
@@ -53,7 +53,7 @@ def create_record():
     except Exception as e:
         abort(500, e)
 
-
+# Delete an item
 @app.route('/api/inventory', methods=['DELETE'])
 def delete_record():
     try:
