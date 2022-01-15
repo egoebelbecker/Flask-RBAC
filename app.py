@@ -4,7 +4,6 @@ import json
 import sqlite3
 from flask import Flask, request, jsonify, abort
 
-app = Flask(__name__)
 
 conn = sqlite3.connect('database.db')
 conn.execute('CREATE TABLE IF NOT EXISTS inventory (name TEXT NOT NULL UNIQUE, data json NOT NULL)')
