@@ -2,7 +2,7 @@
 # encoding: utf-8
 import json
 import sqlite3
-from flask import Flask, request, jsonify, abort,
+from flask import Flask, request, jsonify, abort
 from werkzeug.security import check_password_hash
 from flask_login import LoginManager, login_user, current_user, login_required
 import base64
@@ -70,7 +70,6 @@ def check_access(access_level):
 
 # Retrieve an item
 @app.route('/api/inventory', methods=['GET'])
-@login_required
 @check_access(Role.SALES)
 def query_records():
     try:
